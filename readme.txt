@@ -1,5 +1,5 @@
 ========================================================================
-Provoke Skill v4.0
+Provoke Skill v4.1
 For RPG Maker 2003 with DynRPG v0.20 or higher
 By PepsiOtaku
 ========================================================================
@@ -35,6 +35,7 @@ should be separated by a comma with no spaces (example: 10,1,4).
 
 
 Changelog:
+v4.1: Fixed a crash when a provoked enemy tries to cast magic on itself
 v4.0: Added @provoke_hero command, and bugfixes
 v3.1: Added @provoke_monster command (forces provoke during execution of a battle event.
 v3.0: Added the ability to use multiple skills. 

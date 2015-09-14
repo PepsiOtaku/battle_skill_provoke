@@ -1,6 +1,6 @@
 // Provoke Skill
 // by PepsiOtaku
-// Version 4.0
+// Version 4.1
 
 #include <DynRPG/DynRPG.h>
 #include <vector>
@@ -74,16 +74,20 @@ bool onDoBattlerAction (RPG::Battler* battler, bool firstTry) {
 
 	// Hero is battler
     if (!battler->isMonster()) {
-		h_id = RPG::getPartyIndex(battler->id);
+		if (battler->action->target == RPG::TARGET_MONSTER) {
+            h_id = RPG::getPartyIndex(battler->id);
 
-		M_CHECK_PRVK(RPG::monsters[hero[h_id]],hero[h_id])
+            M_CHECK_PRVK(RPG::monsters[hero[h_id]],hero[h_id])
+		}
     }
 
 	// Monster is battler
     else {
-		m_id = battler->id-1;
+		if (battler->action->target == RPG::TARGET_ACTOR) {
+            m_id = battler->id-1;
 
-        M_CHECK_PRVK(RPG::Actor::partyMember(monster[m_id]),monster[m_id])
+            M_CHECK_PRVK(RPG::Actor::partyMember(monster[m_id]),monster[m_id])
+		}
 	}
     return true;
 }
