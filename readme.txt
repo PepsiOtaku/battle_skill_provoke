@@ -1,5 +1,5 @@
 ========================================================================
-Provoke Skill v3.1
+Provoke Skill v4.0
 For RPG Maker 2003 with DynRPG v0.20 or higher
 By PepsiOtaku
 ========================================================================
@@ -35,6 +35,7 @@ should be separated by a comma with no spaces (example: 10,1,4).
 
 
 Changelog:
+v4.0: Added @provoke_hero command, and bugfixes
 v3.1: Added @provoke_monster command (forces provoke during execution of a battle event.
 v3.0: Added the ability to use multiple skills. 
 v2.0: No longer uses in-game variables! (Code no longer sucks!)
@@ -49,13 +50,17 @@ Instructions
 
 3. Set the ID's of both in your ini, and you're done!
 
-Additionally, you can force provoke a monster to attack a hero using the following comment command:
+Additionally, you can force provoke a battler to attack a target using the following comment command:
 
 @provoke_monster
   - Parameter 1 (number): Monster ID (1-8)
   - Parameter 2 (number): Hero/Target ID (1-4)
+@provoke_hero
+  - Parameter 1 (number): Hero ID (1-4)
+  - Parameter 2 (number): Monster/Target ID (1-8)
   
   Example: "@provoke_monster 2,3" would have the 2nd monster attack the party member in slot 3. Doing this will only affect that monster's next turn, but adding that comment to an event page with the Trigger "Turns Elapsed  [1x+1]" would target that hero every turn.
 
+  
 
 

@@ -1,25 +1,31 @@
 // Provoke Skill
 // by PepsiOtaku
-// Version 3.1
+// Version 4.0
 
 #include <DynRPG/DynRPG.h>
-#define NOT_MAIN_MODULE
 #include <vector>
 
 std::map<std::string, std::string> configuration;
 
-int g_targetMonster[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+// party[battler] = target
+std::map<int,int> hero;
+//int hero[4];
+std::map<int,int> monster;
+//int monster[8];
 
-int targetDigit[2];
-int varDigitValue;
-int partyMember;
-bool forceProvoke = false;
-int forceProvokeId[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // monster's ID
-
+int m_id;
+int h_id;
 int confConditionId;
-std::string confSkillSet;
 
-std::vector<int> provokeVect; // stores the skill IDs that Provoke will use
+std::vector<int> skillVect; // stores the skill IDs that Provoke will use
+
+#define M_CHECK_PRVK(BATTLER,ID) if (ID > -1) { \
+        if (battler->conditions[confConditionId] != 0 && BATTLER) \
+            battler->action->targetId = ID; \
+        else if (ID != -1) { \
+            ID = -1; \
+        } \
+    }
 
 
 bool onStartup (char *pluginName) {
@@ -28,52 +34,57 @@ bool onStartup (char *pluginName) {
     // Provoke Condition ID
     confConditionId = atoi(configuration["ConditionId"].c_str()); // Convert String to Int
     // Provoke Skill ID
-    confSkillSet = configuration["SkillId"]; // Convert String to Int
+	std::string confSkills;
+    confSkills = configuration["SkillId"]; // Convert String to Int
     // Parses the skill ID's for Provoke
     std::string delimiter = ",";
     size_t pos = 0;
     int token;
-    while ((pos = confSkillSet.find(delimiter)) != std::string::npos) {
-        token = atoi(confSkillSet.substr(0, pos).c_str());
-        provokeVect.push_back(token);
-        confSkillSet.erase(0, pos + delimiter.length());
+    while ((pos = confSkills.find(delimiter)) != std::string::npos) {
+        token = atoi(confSkills.substr(0, pos).c_str());
+        skillVect.push_back(token);
+        confSkills.erase(0, pos + delimiter.length());
     }
-    token = atoi(confSkillSet.c_str());
-    provokeVect.push_back(token);
+    token = atoi(confSkills.c_str());
+    skillVect.push_back(token);
 
+	for (int i=0; i<8; i++) {
+		if (i<4) hero[i] = -1;
+		monster[i] = -1;
+	}
     return true;
 }
 
-bool __cdecl onDoBattlerAction (RPG::Battler* battler, bool firstTry){
-    if (battler->isMonster() == false && firstTry == true) { // if battler is a Hero
-        for (unsigned int j=0; j<provokeVect.size(); j++)
-        {
-            if (battler->action->skillId == provokeVect[j]) { // if battler is using Provoke skill
-                // to save variable space, the following combines the attacker's hero id
-                // with the monster's id and stores it in the appropriate variable
-                targetDigit[0] = ((battler->id) * 10);
-                targetDigit[1] = (battler->action->targetId+1);
-                varDigitValue = (targetDigit[0] + targetDigit[1]);
-                g_targetMonster[battler->action->targetId+1] = varDigitValue; // Save the hero's ID for use later
-            }
-        }
+bool onDoBattlerAction (RPG::Battler* battler, bool firstTry) {
+	// Set Provoke
+	if(battler->action->kind == RPG::AK_SKILL && firstTry) {
+		for (unsigned int j=0; j<skillVect.size(); j++) {
+			if (battler->action->skillId == skillVect[j]) {
+				// Save the ID's for use later
+				if (battler->isMonster()) {
+                    m_id = battler->id-1;
+                    hero[battler->action->targetId] = m_id;
+				} else {
+				    h_id = RPG::getPartyIndex(battler->id);
+				    monster[battler->action->targetId] = h_id;
+				}
+			}
+		}
+	}
+
+	// Hero is battler
+    if (!battler->isMonster()) {
+		h_id = RPG::getPartyIndex(battler->id);
+
+		M_CHECK_PRVK(RPG::monsters[hero[h_id]],hero[h_id])
     }
-    // if monster has Provoke condition for more than one turn
-    if (battler->isMonster() == true && (battler->conditions[confConditionId] != 0 || forceProvokeId[battler->id] != 0)) {
-        varDigitValue = g_targetMonster[battler->id];
-        targetDigit[0] = ((varDigitValue - battler->id)/10);
-        // the following loop extracts the party member's id, so that they can be
-        // targeted by the monster
-        int i;
-        for (i=0; i<4; i++){
-            if (RPG::Actor::partyMember(i)->id == targetDigit[0]){
-                partyMember = i;
-                break;
-            }
-        }
-        if (forceProvokeId[battler->id] != 0) forceProvokeId[battler->id] = 0;
-        battler->action->targetId = partyMember;
-    }
+
+	// Monster is battler
+    else {
+		m_id = battler->id-1;
+
+        M_CHECK_PRVK(RPG::Actor::partyMember(monster[m_id]),monster[m_id])
+	}
     return true;
 }
 
@@ -81,16 +92,34 @@ bool onComment(const char* text, const RPG::ParsedCommentData* parsedData, RPG::
 		       RPG::EventScriptData* scriptData, int eventId, int pageId, int lineId, int* nextLineId)
 {
     std::string cmd = parsedData->command;
+
+	// For provoke_monster & provoke_hero,
+	// param1 = battler  (one-based)
+	// param2 = targetId (one-based)
+
     // Forces a monster to attack the hero during the turn this is called
     if(!cmd.compare("provoke_monster")) {
-        int m = parsedData->parameters[0].number; // monster ID
-        int h = RPG::Actor::partyMember(parsedData->parameters[1].number-1)->id; // hero's database ID
-        targetDigit[0] = (h*10);
-        targetDigit[1] = (m);
-        varDigitValue = (targetDigit[0] + targetDigit[1]);
-        g_targetMonster[m] = varDigitValue; // Save the hero's ID for use later
-        //forceProvoke = true;
-        forceProvokeId[m-1] = h;
+        int m = parsedData->parameters[0].number-1; // monster's party ID
+        int h = RPG::getPartyIndex(parsedData->parameters[1].number); // hero's party ID
+		monster[m] = h;
+		if (RPG::monsters[m])
+			RPG::monsters[m]->conditions[confConditionId] = 1;
+		return false;
+    }
+
+	// Forces a hero to attack the monster during the turn this is called
+	if(!cmd.compare("provoke_hero")) {
+        int h = RPG::getPartyIndex(parsedData->parameters[0].number); // hero's party ID
+		int m = parsedData->parameters[1].number-1; // monster's party ID
+		hero[h] = m;
+		if (RPG::Actor::partyMember(m))
+			RPG::Actor::partyMember(m)->conditions[confConditionId] = 1;
+		return false;
     }
     return true;
+}
+
+void onExit() {
+    hero.clear();
+    monster.clear();
 }
